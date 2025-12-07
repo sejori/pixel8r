@@ -1,10 +1,15 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
+import 'package:gal/gal.dart';
 import 'package:http/http.dart' as http;
 import 'package:image/image.dart' as img;
+import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -240,24 +245,74 @@ class _PixelArtPageState extends State<PixelArtPage> {
   }
 
   Future<void> _loadImage() async {
+    if (Platform.isAndroid || Platform.isIOS) {
+      await showModalBottomSheet(
+        context: context,
+        builder: (modalContext) => SafeArea(
+          child: Wrap(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.photo_camera),
+                title: const Text('Camera'),
+                onTap: () {
+                  Navigator.pop(modalContext);
+                  _pickImage(ImageSource.camera);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: const Text('Photo Library'),
+                onTap: () {
+                  Navigator.pop(modalContext);
+                  _pickImage(ImageSource.gallery);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.folder),
+                title: const Text('Files'),
+                onTap: () {
+                  Navigator.pop(modalContext);
+                  _pickFile();
+                },
+              ),
+            ],
+          ),
+        ),
+      );
+    } else {
+      await _pickFile();
+    }
+  }
+
+  Future<void> _pickImage(ImageSource source) async {
+    try {
+      final picker = ImagePicker();
+      final pickedFile = await picker.pickImage(source: source);
+      if (pickedFile != null) {
+        final bytes = await pickedFile.readAsBytes();
+        _processImageBytes(bytes);
+      }
+    } catch (e) {
+      debugPrint('Error picking image: $e');
+    }
+  }
+
+  Future<void> _pickFile() async {
     const XTypeGroup typeGroup = XTypeGroup(
       label: 'images',
       extensions: <String>['jpg', 'jpeg', 'png'],
+      uniformTypeIdentifiers: ['public.image'],
     );
-    final XFile? file = await openFile(acceptedTypeGroups: <XTypeGroup>[typeGroup]);
+    final XFile? file =
+        await openFile(acceptedTypeGroups: <XTypeGroup>[typeGroup]);
 
     if (file == null) {
-      // Operation was canceled by the user.
       return;
     }
 
     try {
       final bytes = await file.readAsBytes();
-      setState(() {
-        imageBytes = bytes;
-        _editableImage = null;
-      });
-      _convertToPixelArt();
+      _processImageBytes(bytes);
     } catch (e) {
       debugPrint('Error loading image: $e');
       if (mounted) {
@@ -268,33 +323,94 @@ class _PixelArtPageState extends State<PixelArtPage> {
     }
   }
 
+  void _processImageBytes(Uint8List bytes) {
+    setState(() {
+      imageBytes = bytes;
+      _editableImage = null;
+    });
+    _convertToPixelArt();
+  }
+
   Future<void> _saveImage() async {
     if (_editableImage == null) return;
 
     try {
-      // Save the image at its current resolution (the pixel art grid size)
       final pngBytes = img.encodePng(_editableImage!);
-      
       const fileName = 'pixel_art.png';
-      final FileSaveLocation? result = await getSaveLocation(suggestedName: fileName);
-      
-      if (result == null) {
-        // Operation was canceled by the user.
-        return;
-      }
 
-      final XFile textFile = XFile.fromData(
-        pngBytes,
-        mimeType: 'image/png',
-        name: fileName,
-      );
-
-      await textFile.saveTo(result.path);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Image saved successfully!')),
+      if (Platform.isAndroid || Platform.isIOS) {
+        await showModalBottomSheet(
+          context: context,
+          builder: (modalContext) => SafeArea(
+            child: Wrap(
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.photo),
+                  title: const Text('Save to Photos'),
+                  onTap: () async {
+                    Navigator.pop(modalContext);
+                    try {
+                      final directory = await getTemporaryDirectory();
+                      final filePath = '${directory.path}/pixel_art_${DateTime.now().millisecondsSinceEpoch}.png';
+                      final file = File(filePath);
+                      await file.writeAsBytes(pngBytes);
+                      
+                      // Request access if needed (Gal handles this usually, but good to wrap)
+                      await Gal.putImage(filePath);
+                      
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Saved to Photos!')),
+                        );
+                      }
+                    } catch (e) {
+                       debugPrint('Error saving to gallery: $e');
+                       if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Error saving to gallery: $e')),
+                        );
+                      }
+                    }
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.share),
+                  title: const Text('Share / Save to Files'),
+                  onTap: () async {
+                    Navigator.pop(modalContext);
+                    final directory = await getTemporaryDirectory();
+                    final filePath = '${directory.path}/$fileName';
+                    final file = File(filePath);
+                    await file.writeAsBytes(pngBytes);
+                    
+                    // Share only the file, no text to avoid empty text files
+                    await Share.shareXFiles([XFile(filePath)]);
+                  },
+                ),
+              ],
+            ),
+          ),
         );
+      } else {
+        // Desktop/Web
+        final FileSaveLocation? result = await getSaveLocation(suggestedName: fileName);
+        if (result == null) {
+          // Operation was canceled by the user.
+          return;
+        }
+
+        final XFile textFile = XFile.fromData(
+          pngBytes,
+          mimeType: 'image/png',
+          name: fileName,
+        );
+        await textFile.saveTo(result.path);
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Image saved successfully!')),
+          );
+        }
       }
     } catch (e) {
       debugPrint('Error saving image: $e');

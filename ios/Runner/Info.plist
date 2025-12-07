@@ -45,5 +45,11 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>We need access to your photo library to load and save pixel art.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>We need access to your camera to take photos for pixel art.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>We need permission to save pixel art to your gallery.</string>
 </dict>
 </plist>
