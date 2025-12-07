@@ -55,6 +55,7 @@ class _PixelArtPageState extends State<PixelArtPage> {
   bool _isPanelOpen = true;
   bool _isColorMenuOpen = false;
   Color selectedColor = Colors.black;
+  Offset _floatingPos = const Offset(20, 100);
 
   List<Color> _palette = [
     Colors.black,
@@ -96,7 +97,7 @@ class _PixelArtPageState extends State<PixelArtPage> {
   Future<void> _savePalette() async {
     final prefs = await SharedPreferences.getInstance();
     final List<String> colorStrings =
-        _palette.map((c) => c.toARGB32().toString()).toList();
+        _palette.map((c) => c.value.toString()).toList();
     await prefs.setStringList('custom_palette', colorStrings);
   }
 
@@ -323,7 +324,7 @@ class _PixelArtPageState extends State<PixelArtPage> {
                     : const Center(child: CircularProgressIndicator()),
               ),
               
-              // 2. Bottom UI (Color Menu + Collapsible Panel)
+              // 2. Bottom UI (Collapsible Panel ONLY)
               Positioned(
                 left: 0,
                 right: 0,
@@ -332,80 +333,6 @@ class _PixelArtPageState extends State<PixelArtPage> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Color Menu (Visible if open)
-                    if (_isColorMenuOpen)
-                      Container(
-                                              height: 60,
-                                              margin: const EdgeInsets.only(bottom: 8, left: 20, right: 16),                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(30),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.1),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: _palette.length + 1, // +1 for Add button
-                          itemBuilder: (context, index) {
-                            if (index == _palette.length) {
-                              return IconButton(
-                                onPressed: _addColor,
-                                icon: const Icon(Icons.add_circle, size: 32, color: Colors.blue),
-                                tooltip: 'Add Color',
-                              );
-                            }
-  
-                            final color = _palette[index];
-                            final isSelected = selectedColor == color;
-                            
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 4.0),
-                              child: Stack(
-                                alignment: Alignment.center,
-                                children: [
-                                  GestureDetector(
-                                    onTap: () {
-                                      setState(() {
-                                        selectedColor = color;
-                                      });
-                                    },
-                                    child: Container(
-                                      width: 36,
-                                      height: 36,
-                                      decoration: BoxDecoration(
-                                        color: color,
-                                        shape: BoxShape.circle,
-                                        border: isSelected
-                                            ? Border.all(
-                                                color: Colors.blueAccent, width: 3)
-                                            : Border.all(
-                                                color: Colors.grey[300]!, width: 1),
-                                      ),
-                                    ),
-                                  ),
-                                                                  Positioned(
-                                                                    right: 0,
-                                                                    top: 0,
-                                                                    child: GestureDetector(
-                                                                      onTap: () => _removeColor(index),
-                                                                      child: const Icon(
-                                                                        Icons.close,
-                                                                        size: 14,
-                                                                        color: Colors.black,
-                                                                      ),
-                                                                    ),
-                                                                  ),                                ],
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-  
                     // Collapsible Bottom Panel
                     Column(
                       mainAxisSize: MainAxisSize.min,
@@ -487,12 +414,97 @@ class _PixelArtPageState extends State<PixelArtPage> {
                   ],
                 ),
               ),
+
+              // 3. Color Menu (Visible if open)
+              if (_isColorMenuOpen)
+                Positioned(
+                  left: _floatingPos.dx,
+                  top: _floatingPos.dy + 60,
+                  child: Container(
+                    height: 60,
+                    width: 300,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(30),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.1),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: _palette.length + 1, // +1 for Add button
+                      itemBuilder: (context, index) {
+                        if (index == _palette.length) {
+                          return IconButton(
+                            onPressed: _addColor,
+                            icon: const Icon(Icons.add_circle, size: 32, color: Colors.blue),
+                            tooltip: 'Add Color',
+                          );
+                        }
+
+                        final color = _palette[index];
+                        final isSelected = selectedColor == color;
+                        
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              GestureDetector(
+                                onTap: () {
+                                  setState(() {
+                                    selectedColor = color;
+                                  });
+                                },
+                                child: Container(
+                                  width: 36,
+                                  height: 36,
+                                  decoration: BoxDecoration(
+                                    color: color,
+                                    shape: BoxShape.circle,
+                                    border: isSelected
+                                        ? Border.all(
+                                            color: Colors.blueAccent, width: 3)
+                                        : Border.all(
+                                            color: Colors.grey[300]!, width: 1),
+                                  ),
+                                ),
+                              ),
+                              Positioned(
+                                right: 0,
+                                top: 0,
+                                child: GestureDetector(
+                                  onTap: () => _removeColor(index),
+                                  child: const Icon(
+                                    Icons.close,
+                                    size: 14,
+                                    color: Colors.black,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
               
-              // 3. Floating Color Indicator (FAB)
-            Positioned(
-              left: 20,
-              bottom: 20, // Keep this fixed as per floating circle behavior
-              child: GestureDetector(
+              // 4. Floating Color Indicator (FAB)
+              Positioned(
+                left: _floatingPos.dx,
+                top: _floatingPos.dy,
+                child: GestureDetector(
+                  onPanUpdate: (details) {
+                    setState(() {
+                      _floatingPos += details.delta;
+                    });
+                  },
                   onTap: () {
                     setState(() {
                       _isColorMenuOpen = !_isColorMenuOpen;
@@ -513,7 +525,7 @@ class _PixelArtPageState extends State<PixelArtPage> {
                         ),
                       ],
                     ),
-                    child: _isColorMenuOpen ? const Icon(Icons.close, color: Colors.white) : null, // Optional icon
+                    child: _isColorMenuOpen ? const Icon(Icons.close, color: Colors.white) : null,
                   ),
                 ),
               ),
