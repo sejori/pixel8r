@@ -72,6 +72,8 @@ class _PixelArtPageState extends State<PixelArtPage> {
     Colors.grey,
   ];
 
+  SharedPreferences? _prefs;
+
   @override
   void initState() {
     super.initState();
@@ -80,8 +82,8 @@ class _PixelArtPageState extends State<PixelArtPage> {
   }
 
   Future<void> _loadPalette() async {
-    final prefs = await SharedPreferences.getInstance();
-    final List<String>? colorStrings = prefs.getStringList('custom_palette');
+    _prefs ??= await SharedPreferences.getInstance();
+    final List<String>? colorStrings = _prefs?.getStringList('custom_palette');
 
     if (colorStrings != null && colorStrings.isNotEmpty) {
       setState(() {
@@ -95,10 +97,10 @@ class _PixelArtPageState extends State<PixelArtPage> {
   }
 
   Future<void> _savePalette() async {
-    final prefs = await SharedPreferences.getInstance();
+    _prefs ??= await SharedPreferences.getInstance();
     final List<String> colorStrings =
-        _palette.map((c) => c.value.toString()).toList();
-    await prefs.setStringList('custom_palette', colorStrings);
+        _palette.map((c) => c.toARGB32().toString()).toList();
+    await _prefs?.setStringList('custom_palette', colorStrings);
   }
 
   void _addColor() {
