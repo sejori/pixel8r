@@ -4,16 +4,17 @@
 <dict>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
-	<key>CFBundleDisplayName</key>
-	<string>New App Live 1</string>
-	<key>CFBundleExecutable</key>
-	<string>$(EXECUTABLE_NAME)</string>
-	<key>CFBundleIdentifier</key>
-	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
-	<key>CFBundleInfoDictionaryVersion</key>
-	<string>6.0</string>
-	<key>CFBundleName</key>
-	<string>new_app_live_1</string>
+	        <key>CFBundleDisplayName</key>
+	        <string>Pixel8r</string>
+	        <key>CFBundleExecutable</key>
+	        <string>$(EXECUTABLE_NAME)</string>
+	        <key>CFBundleIdentifier</key>
+	        <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	        <key>CFBundleInfoDictionaryVersion</key>
+	        <string>6.0</string>
+	        <key>CFBundleName</key>
+	        <string>Pixel8r</string>
+	
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>

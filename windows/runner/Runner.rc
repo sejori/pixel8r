@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.example" "\0"
-            VALUE "FileDescription", "new_app_live_1" "\0"
+            VALUE "CompanyName", "Sejori Studios" "\0"
+            VALUE "FileDescription", "Pixel8r" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "new_app_live_1" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2025 com.example. All rights reserved." "\0"
-            VALUE "OriginalFilename", "new_app_live_1.exe" "\0"
-            VALUE "ProductName", "new_app_live_1" "\0"
+            VALUE "InternalName", "Pixel8r" "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2025 Sejori Studios. All rights reserved." "\0"
+            VALUE "OriginalFilename", "Pixel8r.exe" "\0"
+            VALUE "ProductName", "Pixel8r" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

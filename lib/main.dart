@@ -22,12 +22,12 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Pixel Art Converter',
+      title: 'Pixel8r',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: const PixelArtPage(title: 'Pixel Art Converter'),
+      home: const PixelArtPage(title: 'Pixel8r'),
     );
   }
 }

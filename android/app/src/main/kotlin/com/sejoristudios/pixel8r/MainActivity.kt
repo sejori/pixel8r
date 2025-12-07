@@ -1,4 +1,4 @@
-package com.example.new_app_live_1
+package com.sejoristudios.pixel8r
 
 import io.flutter.embedding.android.FlutterActivity
 

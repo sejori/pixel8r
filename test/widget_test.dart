@@ -8,7 +8,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:new_app_live_1/main.dart';
+import 'package:pixel8r/main.dart';
 
 void main() {
   testWidgets('Pixel Art Converter UI smoke test', (WidgetTester tester) async {
