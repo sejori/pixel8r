@@ -46,9 +46,25 @@ class _PixelArtPageState extends State<PixelArtPage> {
       'https://lh3.googleusercontent.com/gps-cs-s/AC9h4npGYfST0JNslivofuasn4vk5nBlCtmJ_Qx13hX71WkEQop5gr0fz9W6_2kWxJQ8Qby9oRjL86hBv6_44AlyhfNJyEOB7UuOQhl0Gph2Bz9vYgzdXhpHjdUQmgmRxtwF6HKHl7l3ng=s680-w680-h510';
 
   Uint8List? imageBytes;
-  Uint8List? pixelatedImageBytes;
-
+  img.Image? _editableImage;
+  
   int pixelSize = 8;
+  Color selectedColor = Colors.black;
+
+  final List<Color> _palette = [
+    Colors.black,
+    Colors.white,
+    Colors.red,
+    Colors.green,
+    Colors.blue,
+    Colors.yellow,
+    Colors.orange,
+    Colors.purple,
+    Colors.cyan,
+    Colors.brown,
+    Colors.pink,
+    Colors.grey,
+  ];
 
   @override
   void initState() {
@@ -63,7 +79,7 @@ class _PixelArtPageState extends State<PixelArtPage> {
       if (response.statusCode == 200) {
         setState(() {
           imageBytes = response.bodyBytes;
-          pixelatedImageBytes = null;
+          _editableImage = null;
         });
         _convertToPixelArt();
       } else {
@@ -76,20 +92,21 @@ class _PixelArtPageState extends State<PixelArtPage> {
 
   void _convertToPixelArt() {
     if (imageBytes == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No image has been downloaded'),
-        ),
-      );
       return;
     }
 
     final myImageObject = _decodeImage(imageBytes!);
 
-    final newWidth = myImageObject.width ~/ pixelSize;
-    final newHeight = myImageObject.height ~/ pixelSize;
+    // Ensure pixelSize is at least 1
+    final effectivePixelSize = pixelSize < 1 ? 1 : pixelSize;
 
-    // Resize to create pixelated effect without changing colors
+    final newWidth = (myImageObject.width / effectivePixelSize).floor();
+    final newHeight = (myImageObject.height / effectivePixelSize).floor();
+
+    if (newWidth <= 0 || newHeight <= 0) return;
+
+    // Resize to create pixelated effect (downscale)
+    // This creates the "grid" we will edit
     img.Image resized = img.copyResize(
       myImageObject,
       width: newWidth,
@@ -97,15 +114,8 @@ class _PixelArtPageState extends State<PixelArtPage> {
       interpolation: img.Interpolation.nearest,
     );
 
-    img.Image pixelated = img.copyResize(
-      resized,
-      width: newWidth * pixelSize,
-      height: newHeight * pixelSize,
-      interpolation: img.Interpolation.nearest,
-    );
-
     setState(() {
-      pixelatedImageBytes = img.encodePng(pixelated); // Preserve transparency
+      _editableImage = resized;
     });
   }
 
@@ -113,61 +123,200 @@ class _PixelArtPageState extends State<PixelArtPage> {
     return img.decodeImage(bytes)!;
   }
 
+  void _updatePixel(int x, int y) {
+    if (_editableImage == null) return;
+    
+    // Bounds check
+    if (x < 0 || x >= _editableImage!.width || y < 0 || y >= _editableImage!.height) return;
+
+    setState(() {
+       // Set the pixel color. 
+       // image package v4 uses r, g, b, a components directly or a Color object
+       // We can use clear then set or just overwrite.
+       _editableImage!.setPixelRgba(
+        x,
+        y,
+        (selectedColor.r * 255).toInt(),
+        (selectedColor.g * 255).toInt(),
+        (selectedColor.b * 255).toInt(),
+        (selectedColor.a * 255).toInt(),
+      );
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.grey[200],
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: Text(widget.title),
         actions: [
           IconButton(
-            // Replace the image with the selected one
             onPressed: () => _downloadImage(imageUrl1),
-            icon: const Icon(Icons.download),
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Reload Image',
           ),
         ],
       ),
       body: SafeArea(
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: <Widget>[
-              imageBytes != null
-                  ? Expanded(
-                      child: Image.memory(
-                        imageBytes!,
-                        fit: BoxFit.cover,
-                      ),
+        child: Column(
+          children: [
+            Expanded(
+              child: _editableImage != null
+                  ? LayoutBuilder(
+                      builder: (context, constraints) {
+                        // Calculate size that fits within constraints while maintaining aspect ratio
+                        final double aspect =
+                            _editableImage!.width / _editableImage!.height;
+                        double displayWidth = constraints.maxWidth;
+                        double displayHeight = displayWidth / aspect;
+
+                        if (displayHeight > constraints.maxHeight) {
+                          displayHeight = constraints.maxHeight;
+                          displayWidth = displayHeight * aspect;
+                        }
+
+                        final displaySize = Size(displayWidth, displayHeight);
+
+                        return InteractiveViewer(
+                          minScale: 0.1,
+                          maxScale: 50.0,
+                          boundaryMargin: const EdgeInsets.all(double.infinity),
+                          child: Center(
+                            child: GestureDetector(
+                              onPanUpdate: (details) {
+                                _handleInput(
+                                    details.localPosition, displaySize);
+                              },
+                              onTapUp: (details) {
+                                _handleInput(
+                                    details.localPosition, displaySize);
+                              },
+                              child: CustomPaint(
+                                size: displaySize,
+                                painter: PixelArtPainter(_editableImage!),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
                     )
-                  : const SizedBox.shrink(),
-              const SizedBox(height: 20),
-              pixelatedImageBytes != null
-                  ? Expanded(
-                      child: Image.memory(
-                        pixelatedImageBytes!,
-                        fit: BoxFit.cover,
+                  : const Center(child: CircularProgressIndicator()),
+            ),
+            Container(
+              color: Colors.white,
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Tools',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    height: 50,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: _palette.length,
+                      itemBuilder: (context, index) {
+                        final color = _palette[index];
+                        final isSelected = selectedColor == color;
+                        return GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              selectedColor = color;
+                            });
+                          },
+                          child: Container(
+                            margin: const EdgeInsets.only(right: 8),
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: color,
+                              shape: BoxShape.circle,
+                              border: isSelected
+                                  ? Border.all(
+                                      color: Colors.blueAccent, width: 3)
+                                  : Border.all(
+                                      color: Colors.grey[300]!, width: 1),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      const Text('Grid Size:'),
+                      Expanded(
+                        child: Slider(
+                          value: pixelSize.toDouble(),
+                          min: 1,
+                          max: 32,
+                          divisions: 31,
+                          label: pixelSize.toString(),
+                          onChanged: (value) {
+                            setState(() {
+                              pixelSize = value.toInt();
+                              _convertToPixelArt();
+                            });
+                          },
+                        ),
                       ),
-                    )
-                  : const Spacer(),
-              const SizedBox(height: 20),
-              Text('Pixel size: $pixelSize'),
-              Slider(
-                value: pixelSize.toDouble(),
-                min: 1,
-                max: 32,
-                divisions: 31,
-                onChanged: (value) {
-                  setState(() {
-                    pixelSize = value.toInt();
-                    _convertToPixelArt();
-                  });
-                },
+                      Text(pixelSize.toString()),
+                    ],
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
+  }
+
+  void _handleInput(Offset localPosition, Size displaySize) {
+    if (_editableImage == null) return;
+
+    final x =
+        (localPosition.dx / displaySize.width * _editableImage!.width).floor();
+    final y =
+        (localPosition.dy / displaySize.height * _editableImage!.height).floor();
+
+    _updatePixel(x, y);
+  }
+}
+
+class PixelArtPainter extends CustomPainter {
+  final img.Image image;
+
+  PixelArtPainter(this.image);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final pixelWidth = size.width / image.width;
+    final pixelHeight = size.height / image.height;
+    final paint = Paint()..style = PaintingStyle.fill;
+
+    for (var y = 0; y < image.height; y++) {
+      for (var x = 0; x < image.width; x++) {
+        final pixel = image.getPixel(x, y);
+        paint.color = Color.fromARGB(
+            pixel.a.toInt(), pixel.r.toInt(), pixel.g.toInt(), pixel.b.toInt());
+        
+        // Draw slightly larger to avoid grid lines due to antialiasing? 
+        // Or just exact.
+        canvas.drawRect(
+            Rect.fromLTWH(x * pixelWidth, y * pixelHeight, pixelWidth + 0.5, pixelHeight + 0.5),
+            paint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant PixelArtPainter oldDelegate) {
+     return true; // We can optimize this later if needed
   }
 }
