@@ -145,6 +145,35 @@ class _PixelArtPageState extends State<PixelArtPage> {
     });
   }
 
+  Future<void> _loadImage() async {
+    const XTypeGroup typeGroup = XTypeGroup(
+      label: 'images',
+      extensions: <String>['jpg', 'jpeg', 'png'],
+    );
+    final XFile? file = await openFile(acceptedTypeGroups: <XTypeGroup>[typeGroup]);
+
+    if (file == null) {
+      // Operation was canceled by the user.
+      return;
+    }
+
+    try {
+      final bytes = await file.readAsBytes();
+      setState(() {
+        imageBytes = bytes;
+        _editableImage = null;
+      });
+      _convertToPixelArt();
+    } catch (e) {
+      debugPrint('Error loading image: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading image: $e')),
+        );
+      }
+    }
+  }
+
   Future<void> _saveImage() async {
     if (_editableImage == null) return;
 
@@ -201,6 +230,11 @@ class _PixelArtPageState extends State<PixelArtPage> {
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: Text(widget.title),
         actions: [
+          IconButton(
+            onPressed: _loadImage,
+            icon: const Icon(Icons.file_open),
+            tooltip: 'Load Image',
+          ),
           IconButton(
             onPressed: _saveImage,
             icon: const Icon(Icons.save),

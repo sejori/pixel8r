@@ -11,20 +11,16 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:new_app_live_1/main.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
+  testWidgets('Pixel Art Converter UI smoke test', (WidgetTester tester) async {
     // Build our app and trigger a frame.
     await tester.pumpWidget(const MyApp());
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    // Verify that our title is present.
+    expect(find.text('Pixel Art Converter'), findsOneWidget);
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    // Verify that our buttons are present.
+    expect(find.byIcon(Icons.save), findsOneWidget);
+    expect(find.byIcon(Icons.refresh), findsOneWidget);
+    expect(find.byIcon(Icons.file_open), findsOneWidget);
   });
 }
