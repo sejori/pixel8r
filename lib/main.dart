@@ -2,8 +2,10 @@ import 'dart:typed_data';
 
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:http/http.dart' as http;
 import 'package:image/image.dart' as img;
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   runApp(const MyApp());
@@ -51,9 +53,10 @@ class _PixelArtPageState extends State<PixelArtPage> {
   
   int _targetSize = 32;
   bool _isPanelOpen = true;
+  bool _isColorMenuOpen = false;
   Color selectedColor = Colors.black;
 
-  final List<Color> _palette = [
+  List<Color> _palette = [
     Colors.black,
     Colors.white,
     Colors.red,
@@ -71,7 +74,70 @@ class _PixelArtPageState extends State<PixelArtPage> {
   @override
   void initState() {
     super.initState();
+    _loadPalette();
     _downloadImage(imageUrl1);
+  }
+
+  Future<void> _loadPalette() async {
+    final prefs = await SharedPreferences.getInstance();
+    final List<String>? colorStrings = prefs.getStringList('custom_palette');
+
+    if (colorStrings != null && colorStrings.isNotEmpty) {
+      setState(() {
+        _palette = colorStrings.map((c) => Color(int.parse(c))).toList();
+        // Ensure selectedColor is in the palette, or reset it
+        if (!_palette.contains(selectedColor)) {
+          selectedColor = _palette.isNotEmpty ? _palette.first : Colors.black;
+        }
+      });
+    }
+  }
+
+  Future<void> _savePalette() async {
+    final prefs = await SharedPreferences.getInstance();
+    final List<String> colorStrings =
+        _palette.map((c) => c.toARGB32().toString()).toList();
+    await prefs.setStringList('custom_palette', colorStrings);
+  }
+
+  void _addColor() {
+    Color pickerColor = Colors.blue;
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Pick a color!'),
+        content: SingleChildScrollView(
+                                  child: ColorPicker(
+                                    pickerColor: pickerColor,
+                                    onColorChanged: (color) {
+                                      pickerColor = color;
+                                    },
+                                  ),        ),
+        actions: <Widget>[
+          ElevatedButton(
+            child: const Text('Got it'),
+            onPressed: () {
+              setState(() {
+                _palette.add(pickerColor);
+                selectedColor = pickerColor;
+              });
+              _savePalette();
+              Navigator.of(context).pop();
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _removeColor(int index) {
+    setState(() {
+      Color removed = _palette.removeAt(index);
+      if (selectedColor == removed) {
+        selectedColor = _palette.isNotEmpty ? _palette.first : Colors.black;
+      }
+    });
+    _savePalette();
   }
 
   Future<void> _downloadImage(String imageUrl) async {
@@ -207,173 +273,255 @@ class _PixelArtPageState extends State<PixelArtPage> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey[200],
-      body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: _editableImage != null
-                  ? LayoutBuilder(
-                      builder: (context, constraints) {
-                        // Calculate size that fits within constraints while maintaining aspect ratio
-                        final double aspect =
-                            _editableImage!.width / _editableImage!.height;
-                        double displayWidth = constraints.maxWidth;
-                        double displayHeight = displayWidth / aspect;
-
-                        if (displayHeight > constraints.maxHeight) {
-                          displayHeight = constraints.maxHeight;
-                          displayWidth = displayHeight * aspect;
-                        }
-
-                        final displaySize = Size(displayWidth, displayHeight);
-
-                        return InteractiveViewer(
-                          minScale: 0.1,
-                          maxScale: 50.0,
-                          boundaryMargin: const EdgeInsets.all(double.infinity),
-                          child: Center(
-                            child: GestureDetector(
-                              onPanUpdate: (details) {
-                                _handleInput(
-                                    details.localPosition, displaySize);
-                              },
-                              onTapUp: (details) {
-                                _handleInput(
-                                    details.localPosition, displaySize);
-                              },
-                              child: CustomPaint(
-                                size: displaySize,
-                                painter: PixelArtPainter(_editableImage!),
+    @override
+    Widget build(BuildContext context) {
+      return Scaffold(
+        backgroundColor: Colors.grey[200],
+        body: SafeArea(
+          child: Stack(
+            children: [
+              // 1. Main Image Area
+              Positioned.fill(
+                child: _editableImage != null
+                    ? LayoutBuilder(
+                        builder: (context, constraints) {
+                          final double aspect =
+                              _editableImage!.width / _editableImage!.height;
+                          double displayWidth = constraints.maxWidth;
+                          double displayHeight = displayWidth / aspect;
+  
+                          if (displayHeight > constraints.maxHeight) {
+                            displayHeight = constraints.maxHeight;
+                            displayWidth = displayHeight * aspect;
+                          }
+  
+                          final displaySize = Size(displayWidth, displayHeight);
+  
+                          return InteractiveViewer(
+                            minScale: 0.1,
+                            maxScale: 50.0,
+                            boundaryMargin: const EdgeInsets.all(double.infinity),
+                            child: Center(
+                              child: GestureDetector(
+                                onPanUpdate: (details) {
+                                  _handleInput(
+                                      details.localPosition, displaySize);
+                                },
+                                onTapUp: (details) {
+                                  _handleInput(
+                                      details.localPosition, displaySize);
+                                },
+                                child: CustomPaint(
+                                  size: displaySize,
+                                  painter: PixelArtPainter(_editableImage!),
+                                ),
                               ),
                             ),
+                          );
+                        },
+                      )
+                    : const Center(child: CircularProgressIndicator()),
+              ),
+              
+              // 2. Bottom UI (Color Menu + Collapsible Panel)
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Color Menu (Visible if open)
+                    if (_isColorMenuOpen)
+                      Container(
+                                              height: 60,
+                                              margin: const EdgeInsets.only(bottom: 8, left: 20, right: 16),                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(30),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.1),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _palette.length + 1, // +1 for Add button
+                          itemBuilder: (context, index) {
+                            if (index == _palette.length) {
+                              return IconButton(
+                                onPressed: _addColor,
+                                icon: const Icon(Icons.add_circle, size: 32, color: Colors.blue),
+                                tooltip: 'Add Color',
+                              );
+                            }
+  
+                            final color = _palette[index];
+                            final isSelected = selectedColor == color;
+                            
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                              child: Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  GestureDetector(
+                                    onTap: () {
+                                      setState(() {
+                                        selectedColor = color;
+                                      });
+                                    },
+                                    child: Container(
+                                      width: 36,
+                                      height: 36,
+                                      decoration: BoxDecoration(
+                                        color: color,
+                                        shape: BoxShape.circle,
+                                        border: isSelected
+                                            ? Border.all(
+                                                color: Colors.blueAccent, width: 3)
+                                            : Border.all(
+                                                color: Colors.grey[300]!, width: 1),
+                                      ),
+                                    ),
+                                  ),
+                                                                  Positioned(
+                                                                    right: 0,
+                                                                    top: 0,
+                                                                    child: GestureDetector(
+                                                                      onTap: () => _removeColor(index),
+                                                                      child: const Icon(
+                                                                        Icons.close,
+                                                                        size: 14,
+                                                                        color: Colors.black,
+                                                                      ),
+                                                                    ),
+                                                                  ),                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+  
+                    // Collapsible Bottom Panel
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _isPanelOpen = !_isPanelOpen;
+                            });
+                          },
+                          child: Container(
+                            width: double.infinity,
+                            color: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            child: Icon(
+                              _isPanelOpen
+                                  ? Icons.keyboard_arrow_down
+                                  : Icons.keyboard_arrow_up,
+                              color: Colors.grey[600],
+                            ),
                           ),
-                        );
-                      },
-                    )
-                  : const Center(child: CircularProgressIndicator()),
-            ),
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                GestureDetector(
+                        ),
+                        if (_isPanelOpen)
+                          Container(
+                            color: Colors.white,
+                            padding: const EdgeInsets.only(left: 16.0, right: 16.0, bottom: 16.0, top: 0),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                  children: [
+                                    IconButton(
+                                      onPressed: _loadImage,
+                                      icon: const Icon(Icons.file_open),
+                                      tooltip: 'Load Image',
+                                    ),
+                                    IconButton(
+                                      onPressed: _saveImage,
+                                      icon: const Icon(Icons.save),
+                                      tooltip: 'Save Image',
+                                    ),
+                                    IconButton(
+                                      onPressed: _convertToPixelArt,
+                                      icon: const Icon(Icons.refresh),
+                                      tooltip: 'Reload Image',
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 10),
+                                const Text('Resolution:',
+                                    style: TextStyle(fontWeight: FontWeight.bold)),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Slider(
+                                        value: _targetSize.toDouble(),
+                                        min: 8,
+                                        max: 128,
+                                        divisions: 120,
+                                        label: _targetSize.toString(),
+                                        onChanged: (value) {
+                                          setState(() {
+                                            _targetSize = value.toInt();
+                                            _convertToPixelArt();
+                                          });
+                                        },
+                                      ),
+                                    ),
+                                    Text('${_targetSize}x$_targetSize'),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              
+              // 3. Floating Color Indicator (FAB)
+            Positioned(
+              left: 20,
+              bottom: 20, // Keep this fixed as per floating circle behavior
+              child: GestureDetector(
                   onTap: () {
                     setState(() {
-                      _isPanelOpen = !_isPanelOpen;
+                      _isColorMenuOpen = !_isColorMenuOpen;
                     });
                   },
                   child: Container(
-                    width: double.infinity,
-                    color: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: Icon(
-                      _isPanelOpen
-                          ? Icons.keyboard_arrow_down
-                          : Icons.keyboard_arrow_up,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                ),
-                if (_isPanelOpen)
-                  Container(
-                    color: Colors.white,
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            IconButton(
-                              onPressed: _loadImage,
-                              icon: const Icon(Icons.file_open),
-                              tooltip: 'Load Image',
-                            ),
-                            IconButton(
-                              onPressed: _saveImage,
-                              icon: const Icon(Icons.save),
-                              tooltip: 'Save Image',
-                            ),
-                            IconButton(
-                              onPressed: _convertToPixelArt,
-                              icon: const Icon(Icons.refresh),
-                              tooltip: 'Reload Image',
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        const Text('Tools',
-                            style: TextStyle(fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 10),
-                        SizedBox(
-                          height: 50,
-                          child: ListView.builder(
-                            scrollDirection: Axis.horizontal,
-                            itemCount: _palette.length,
-                            itemBuilder: (context, index) {
-                              final color = _palette[index];
-                              final isSelected = selectedColor == color;
-                              return GestureDetector(
-                                onTap: () {
-                                  setState(() {
-                                    selectedColor = color;
-                                  });
-                                },
-                                child: Container(
-                                  margin: const EdgeInsets.only(right: 8),
-                                  width: 40,
-                                  height: 40,
-                                  decoration: BoxDecoration(
-                                    color: color,
-                                    shape: BoxShape.circle,
-                                    border: isSelected
-                                        ? Border.all(
-                                            color: Colors.blueAccent, width: 3)
-                                        : Border.all(
-                                            color: Colors.grey[300]!, width: 1),
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        Row(
-                          children: [
-                            const Text('Resolution:'),
-                            Expanded(
-                              child: Slider(
-                                value: _targetSize.toDouble(),
-                                min: 8,
-                                max: 128,
-                                divisions: 120,
-                                label: _targetSize.toString(),
-                                onChanged: (value) {
-                                  setState(() {
-                                    _targetSize = value.toInt();
-                                    _convertToPixelArt();
-                                  });
-                                },
-                              ),
-                            ),
-                            Text('${_targetSize}x$_targetSize'),
-                          ],
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      color: selectedColor,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 3),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
                         ),
                       ],
                     ),
+                    child: _isColorMenuOpen ? const Icon(Icons.close, color: Colors.white) : null, // Optional icon
                   ),
-              ],
-            ),
-          ],
+                ),
+              ),
+            ],
+          ),
         ),
-      ),
-    );
-  }
-
+      );
+    }
   void _handleInput(Offset localPosition, Size displaySize) {
     if (_editableImage == null) return;
 
