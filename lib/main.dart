@@ -651,6 +651,10 @@ class _PixelArtPageState extends State<PixelArtPage> {
       );
       
       setState(() {
+        if (!_palette.contains(color)) {
+          _palette.add(color);
+          _savePalette();
+        }
         selectedColor = color;
         _isPipetteMode = false; // Disable pipette mode after picking
       });
