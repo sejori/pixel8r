@@ -83,6 +83,7 @@ class _PixelArtPageState extends State<PixelArtPage> {
   final List<img.Image> _redoStack = [];
   img.Image? _dragStartImage;
   bool _isPipetteMode = false;
+  final ValueNotifier<int> _imageVersion = ValueNotifier(0);
 
   @override
   void initState() {
@@ -96,6 +97,7 @@ class _PixelArtPageState extends State<PixelArtPage> {
     setState(() {
       _redoStack.add(_editableImage!.clone());
       _editableImage = _undoStack.removeLast();
+      _imageVersion.value++;
     });
   }
 
@@ -104,11 +106,15 @@ class _PixelArtPageState extends State<PixelArtPage> {
     setState(() {
       _undoStack.add(_editableImage!.clone());
       _editableImage = _redoStack.removeLast();
+      _imageVersion.value++;
     });
   }
 
   void _recordUndoState() {
     if (_editableImage != null) {
+      if (_undoStack.length >= 20) {
+        _undoStack.removeAt(0);
+      }
       _undoStack.add(_editableImage!.clone());
       _redoStack.clear();
     }
@@ -216,6 +222,7 @@ class _PixelArtPageState extends State<PixelArtPage> {
       _editableImage = resized;
       _undoStack.clear();
       _redoStack.clear();
+      _imageVersion.value++;
     });
   }
 
@@ -229,19 +236,18 @@ class _PixelArtPageState extends State<PixelArtPage> {
     // Bounds check
     if (x < 0 || x >= _editableImage!.width || y < 0 || y >= _editableImage!.height) return;
 
-    setState(() {
-       // Set the pixel color. 
-       // image package v4 uses r, g, b, a components directly or a Color object
-       // We can use clear then set or just overwrite.
-       _editableImage!.setPixelRgba(
-        x,
-        y,
-        (selectedColor.r * 255).toInt(),
-        (selectedColor.g * 255).toInt(),
-        (selectedColor.b * 255).toInt(),
-        (selectedColor.a * 255).toInt(),
-      );
-    });
+    // Set the pixel color. 
+    // image package v4 uses r, g, b, a components directly or a Color object
+    // We can use clear then set or just overwrite.
+    _editableImage!.setPixelRgba(
+      x,
+      y,
+      (selectedColor.r * 255).toInt(),
+      (selectedColor.g * 255).toInt(),
+      (selectedColor.b * 255).toInt(),
+      (selectedColor.a * 255).toInt(),
+    );
+    _imageVersion.value++;
   }
 
   Future<void> _loadImage() async {
@@ -477,9 +483,11 @@ class _PixelArtPageState extends State<PixelArtPage> {
                                   _handleInput(
                                       details.localPosition, displaySize);
                                 },
-                                child: CustomPaint(
-                                  size: displaySize,
-                                  painter: PixelArtPainter(_editableImage!),
+                                child: RepaintBoundary(
+                                  child: CustomPaint(
+                                    size: displaySize,
+                                    painter: PixelArtPainter(_editableImage!, _imageVersion),
+                                  ),
                                 ),
                               ),
                             ),
@@ -783,8 +791,9 @@ class _PixelArtPageState extends State<PixelArtPage> {
 
 class PixelArtPainter extends CustomPainter {
   final img.Image image;
+  final ValueNotifier<int> imageVersion;
 
-  PixelArtPainter(this.image);
+  PixelArtPainter(this.image, this.imageVersion) : super(repaint: imageVersion);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -809,6 +818,6 @@ class PixelArtPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant PixelArtPainter oldDelegate) {
-     return true; // We can optimize this later if needed
+     return oldDelegate.image != image;
   }
 }
