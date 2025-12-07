@@ -77,6 +77,7 @@ class _PixelArtPageState extends State<PixelArtPage> {
   final List<img.Image> _undoStack = [];
   final List<img.Image> _redoStack = [];
   img.Image? _dragStartImage;
+  bool _isPipetteMode = false;
 
   @override
   void initState() {
@@ -336,7 +337,7 @@ class _PixelArtPageState extends State<PixelArtPage> {
                             child: Center(
                               child: GestureDetector(
                                 onPanStart: (details) {
-                                  if (_editableImage != null) {
+                                  if (_editableImage != null && !_isPipetteMode) {
                                     _dragStartImage = _editableImage!.clone();
                                   }
                                 },
@@ -354,7 +355,9 @@ class _PixelArtPageState extends State<PixelArtPage> {
                                   }
                                 },
                                 onTapUp: (details) {
-                                  _recordUndoState();
+                                  if (!_isPipetteMode) {
+                                    _recordUndoState();
+                                  }
                                   _handleInput(
                                       details.localPosition, displaySize);
                                 },
@@ -488,12 +491,32 @@ class _PixelArtPageState extends State<PixelArtPage> {
                     ),
                     child: ListView.builder(
                       scrollDirection: Axis.horizontal,
-                      itemCount: _palette.length + 1, // +1 for Color Picker at start
+                      itemCount: _palette.length + 2, // +1 for Pipette at start, +1 for Add at end
                       itemBuilder: (context, index) {
                         if (index == 0) {
-                          // Color Picker Button
+                          // Pipette Button
                           return Padding(
                             padding: const EdgeInsets.only(right: 8.0),
+                            child: IconButton(
+                              onPressed: () {
+                                setState(() {
+                                  _isPipetteMode = !_isPipetteMode;
+                                });
+                              },
+                              icon: Icon(
+                                Icons.colorize, 
+                                size: 24, 
+                                color: _isPipetteMode ? Colors.blue : Colors.black
+                              ),
+                              tooltip: 'Pick Color from Image',
+                            ),
+                          );
+                        }
+                        
+                        if (index == _palette.length + 1) {
+                          // Color Picker Button (Moved to End)
+                          return Padding(
+                            padding: const EdgeInsets.only(left: 8.0),
                             child: IconButton(
                               onPressed: _addColor,
                               icon: Container(
@@ -531,6 +554,7 @@ class _PixelArtPageState extends State<PixelArtPage> {
                                 onTap: () {
                                   setState(() {
                                     selectedColor = color;
+                                    _isPipetteMode = false;
                                   });
                                 },
                                 child: Container(
@@ -613,6 +637,25 @@ class _PixelArtPageState extends State<PixelArtPage> {
         (localPosition.dx / displaySize.width * _editableImage!.width).floor();
     final y =
         (localPosition.dy / displaySize.height * _editableImage!.height).floor();
+
+    // Bounds check
+    if (x < 0 || x >= _editableImage!.width || y < 0 || y >= _editableImage!.height) return;
+
+    if (_isPipetteMode) {
+      final pixel = _editableImage!.getPixel(x, y);
+      final color = Color.fromARGB(
+        pixel.a.toInt(), 
+        pixel.r.toInt(), 
+        pixel.g.toInt(), 
+        pixel.b.toInt()
+      );
+      
+      setState(() {
+        selectedColor = color;
+        _isPipetteMode = false; // Disable pipette mode after picking
+      });
+      return;
+    }
 
     _updatePixel(x, y);
   }
