@@ -84,12 +84,19 @@ class _PixelArtPageState extends State<PixelArtPage> {
   img.Image? _dragStartImage;
   bool _isPipetteMode = false;
   final ValueNotifier<int> _imageVersion = ValueNotifier(0);
+  final TransformationController _transformationController = TransformationController();
 
   @override
   void initState() {
     super.initState();
     _loadPalette();
     _downloadImage(imageUrl1);
+  }
+
+  @override
+  void dispose() {
+    _transformationController.dispose();
+    super.dispose();
   }
 
   void _undo() {
@@ -248,6 +255,18 @@ class _PixelArtPageState extends State<PixelArtPage> {
       (selectedColor.a * 255).toInt(),
     );
     _imageVersion.value++;
+  }
+
+  void _zoomIn() {
+    final matrix = _transformationController.value.clone();
+    matrix.scaleByDouble(1.2, 1.2, 1.0, 1.0);
+    _transformationController.value = matrix;
+  }
+
+  void _zoomOut() {
+    final matrix = _transformationController.value.clone();
+    matrix.scaleByDouble(1 / 1.2, 1 / 1.2, 1.0, 1.0);
+    _transformationController.value = matrix;
   }
 
   Future<void> _loadImage() async {
@@ -453,6 +472,7 @@ class _PixelArtPageState extends State<PixelArtPage> {
                           final displaySize = Size(displayWidth, displayHeight);
   
                           return InteractiveViewer(
+                            transformationController: _transformationController,
                             minScale: 0.1,
                             maxScale: 50.0,
                             boundaryMargin: const EdgeInsets.all(double.infinity),
@@ -558,6 +578,16 @@ class _PixelArtPageState extends State<PixelArtPage> {
                                       onPressed: _redoStack.isNotEmpty ? _redo : null,
                                       icon: const Icon(Icons.redo),
                                       tooltip: 'Redo',
+                                    ),
+                                    IconButton(
+                                      onPressed: _zoomIn,
+                                      icon: const Icon(Icons.zoom_in),
+                                      tooltip: 'Zoom In',
+                                    ),
+                                    IconButton(
+                                      onPressed: _zoomOut,
+                                      icon: const Icon(Icons.zoom_out),
+                                      tooltip: 'Zoom Out',
                                     ),
                                   ],
                                 ),

@@ -17,7 +17,10 @@ void main() {
 
     // Verify that our buttons are present.
     expect(find.byIcon(Icons.save), findsOneWidget);
-    expect(find.byIcon(Icons.refresh), findsOneWidget);
     expect(find.byIcon(Icons.file_open), findsOneWidget);
+    expect(find.byIcon(Icons.undo), findsOneWidget);
+    expect(find.byIcon(Icons.redo), findsOneWidget);
+    expect(find.byIcon(Icons.zoom_in), findsOneWidget);
+    expect(find.byIcon(Icons.zoom_out), findsOneWidget);
   });
 }
