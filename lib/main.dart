@@ -49,7 +49,7 @@ class _PixelArtPageState extends State<PixelArtPage> {
   Uint8List? imageBytes;
   img.Image? _editableImage;
   
-  int pixelSize = 8;
+  int _targetSize = 32;
   Color selectedColor = Colors.black;
 
   final List<Color> _palette = [
@@ -98,20 +98,14 @@ class _PixelArtPageState extends State<PixelArtPage> {
 
     final myImageObject = _decodeImage(imageBytes!);
 
-    // Ensure pixelSize is at least 1
-    final effectivePixelSize = pixelSize < 1 ? 1 : pixelSize;
+    // Ensure _targetSize is valid
+    final size = _targetSize < 1 ? 32 : _targetSize;
 
-    final newWidth = (myImageObject.width / effectivePixelSize).floor();
-    final newHeight = (myImageObject.height / effectivePixelSize).floor();
-
-    if (newWidth <= 0 || newHeight <= 0) return;
-
-    // Resize to create pixelated effect (downscale)
+    // Resize to create pixelated effect (downscale) and ensure square aspect ratio
     // This creates the "grid" we will edit
-    img.Image resized = img.copyResize(
+    img.Image resized = img.copyResizeCropSquare(
       myImageObject,
-      width: newWidth,
-      height: newHeight,
+      size: size,
       interpolation: img.Interpolation.nearest,
     );
 
@@ -178,18 +172,8 @@ class _PixelArtPageState extends State<PixelArtPage> {
     if (_editableImage == null) return;
 
     try {
-      // Upscale the image back to a reasonable size for saving? 
-      // Or save the small pixelated grid? 
-      // Users usually want the "pixel art" look but at a viewable size. 
-      // Let's scale it up by the pixelSize.
-      final outputImage = img.copyResize(
-        _editableImage!,
-        width: _editableImage!.width * pixelSize,
-        height: _editableImage!.height * pixelSize,
-        interpolation: img.Interpolation.nearest,
-      );
-
-      final pngBytes = img.encodePng(outputImage);
+      // Save the image at its current resolution (the pixel art grid size)
+      final pngBytes = img.encodePng(_editableImage!);
       
       const fileName = 'pixel_art.png';
       final FileSaveLocation? result = await getSaveLocation(suggestedName: fileName);
@@ -337,23 +321,23 @@ class _PixelArtPageState extends State<PixelArtPage> {
                   const SizedBox(height: 10),
                   Row(
                     children: [
-                      const Text('Grid Size:'),
+                      const Text('Resolution:'),
                       Expanded(
                         child: Slider(
-                          value: pixelSize.toDouble(),
-                          min: 1,
-                          max: 32,
-                          divisions: 31,
-                          label: pixelSize.toString(),
+                          value: _targetSize.toDouble(),
+                          min: 8,
+                          max: 128,
+                          divisions: 120,
+                          label: _targetSize.toString(),
                           onChanged: (value) {
                             setState(() {
-                              pixelSize = value.toInt();
+                              _targetSize = value.toInt();
                               _convertToPixelArt();
                             });
                           },
                         ),
                       ),
-                      Text(pixelSize.toString()),
+                      Text('${_targetSize}x$_targetSize'),
                     ],
                   ),
                 ],
