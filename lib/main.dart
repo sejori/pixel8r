@@ -50,6 +50,7 @@ class _PixelArtPageState extends State<PixelArtPage> {
   img.Image? _editableImage;
   
   int _targetSize = 32;
+  bool _isPanelOpen = true;
   Color selectedColor = Colors.black;
 
   final List<Color> _palette = [
@@ -210,27 +211,6 @@ class _PixelArtPageState extends State<PixelArtPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[200],
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: Text(widget.title),
-        actions: [
-          IconButton(
-            onPressed: _loadImage,
-            icon: const Icon(Icons.file_open),
-            tooltip: 'Load Image',
-          ),
-          IconButton(
-            onPressed: _saveImage,
-            icon: const Icon(Icons.save),
-            tooltip: 'Save Image',
-          ),
-          IconButton(
-            onPressed: _convertToPixelArt,
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Reload Image',
-          ),
-        ],
-      ),
       body: SafeArea(
         child: Column(
           children: [
@@ -276,72 +256,117 @@ class _PixelArtPageState extends State<PixelArtPage> {
                     )
                   : const Center(child: CircularProgressIndicator()),
             ),
-            Container(
-              color: Colors.white,
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Tools',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 10),
-                  SizedBox(
-                    height: 50,
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: _palette.length,
-                      itemBuilder: (context, index) {
-                        final color = _palette[index];
-                        final isSelected = selectedColor == color;
-                        return GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              selectedColor = color;
-                            });
-                          },
-                          child: Container(
-                            margin: const EdgeInsets.only(right: 8),
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              color: color,
-                              shape: BoxShape.circle,
-                              border: isSelected
-                                  ? Border.all(
-                                      color: Colors.blueAccent, width: 3)
-                                  : Border.all(
-                                      color: Colors.grey[300]!, width: 1),
-                            ),
-                          ),
-                        );
-                      },
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _isPanelOpen = !_isPanelOpen;
+                    });
+                  },
+                  child: Container(
+                    width: double.infinity,
+                    color: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Icon(
+                      _isPanelOpen
+                          ? Icons.keyboard_arrow_down
+                          : Icons.keyboard_arrow_up,
+                      color: Colors.grey[600],
                     ),
                   ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      const Text('Resolution:'),
-                      Expanded(
-                        child: Slider(
-                          value: _targetSize.toDouble(),
-                          min: 8,
-                          max: 128,
-                          divisions: 120,
-                          label: _targetSize.toString(),
-                          onChanged: (value) {
-                            setState(() {
-                              _targetSize = value.toInt();
-                              _convertToPixelArt();
-                            });
-                          },
+                ),
+                if (_isPanelOpen)
+                  Container(
+                    color: Colors.white,
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            IconButton(
+                              onPressed: _loadImage,
+                              icon: const Icon(Icons.file_open),
+                              tooltip: 'Load Image',
+                            ),
+                            IconButton(
+                              onPressed: _saveImage,
+                              icon: const Icon(Icons.save),
+                              tooltip: 'Save Image',
+                            ),
+                            IconButton(
+                              onPressed: _convertToPixelArt,
+                              icon: const Icon(Icons.refresh),
+                              tooltip: 'Reload Image',
+                            ),
+                          ],
                         ),
-                      ),
-                      Text('${_targetSize}x$_targetSize'),
-                    ],
+                        const SizedBox(height: 10),
+                        const Text('Tools',
+                            style: TextStyle(fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          height: 50,
+                          child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: _palette.length,
+                            itemBuilder: (context, index) {
+                              final color = _palette[index];
+                              final isSelected = selectedColor == color;
+                              return GestureDetector(
+                                onTap: () {
+                                  setState(() {
+                                    selectedColor = color;
+                                  });
+                                },
+                                child: Container(
+                                  margin: const EdgeInsets.only(right: 8),
+                                  width: 40,
+                                  height: 40,
+                                  decoration: BoxDecoration(
+                                    color: color,
+                                    shape: BoxShape.circle,
+                                    border: isSelected
+                                        ? Border.all(
+                                            color: Colors.blueAccent, width: 3)
+                                        : Border.all(
+                                            color: Colors.grey[300]!, width: 1),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            const Text('Resolution:'),
+                            Expanded(
+                              child: Slider(
+                                value: _targetSize.toDouble(),
+                                min: 8,
+                                max: 128,
+                                divisions: 120,
+                                label: _targetSize.toString(),
+                                onChanged: (value) {
+                                  setState(() {
+                                    _targetSize = value.toInt();
+                                    _convertToPixelArt();
+                                  });
+                                },
+                              ),
+                            ),
+                            Text('${_targetSize}x$_targetSize'),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
-                ],
-              ),
+              ],
             ),
           ],
         ),

@@ -15,9 +15,6 @@ void main() {
     // Build our app and trigger a frame.
     await tester.pumpWidget(const MyApp());
 
-    // Verify that our title is present.
-    expect(find.text('Pixel Art Converter'), findsOneWidget);
-
     // Verify that our buttons are present.
     expect(find.byIcon(Icons.save), findsOneWidget);
     expect(find.byIcon(Icons.refresh), findsOneWidget);
