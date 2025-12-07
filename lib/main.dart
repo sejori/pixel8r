@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:image/image.dart' as img;
@@ -144,6 +145,54 @@ class _PixelArtPageState extends State<PixelArtPage> {
     });
   }
 
+  Future<void> _saveImage() async {
+    if (_editableImage == null) return;
+
+    try {
+      // Upscale the image back to a reasonable size for saving? 
+      // Or save the small pixelated grid? 
+      // Users usually want the "pixel art" look but at a viewable size. 
+      // Let's scale it up by the pixelSize.
+      final outputImage = img.copyResize(
+        _editableImage!,
+        width: _editableImage!.width * pixelSize,
+        height: _editableImage!.height * pixelSize,
+        interpolation: img.Interpolation.nearest,
+      );
+
+      final pngBytes = img.encodePng(outputImage);
+      
+      const fileName = 'pixel_art.png';
+      final FileSaveLocation? result = await getSaveLocation(suggestedName: fileName);
+      
+      if (result == null) {
+        // Operation was canceled by the user.
+        return;
+      }
+
+      final XFile textFile = XFile.fromData(
+        pngBytes,
+        mimeType: 'image/png',
+        name: fileName,
+      );
+
+      await textFile.saveTo(result.path);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Image saved successfully!')),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error saving image: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error saving image: $e')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -152,6 +201,11 @@ class _PixelArtPageState extends State<PixelArtPage> {
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: Text(widget.title),
         actions: [
+          IconButton(
+            onPressed: _saveImage,
+            icon: const Icon(Icons.save),
+            tooltip: 'Save Image',
+          ),
           IconButton(
             onPressed: () => _downloadImage(imageUrl1),
             icon: const Icon(Icons.refresh),
