@@ -1,7 +1,7 @@
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:file_selector/file_selector.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:gal/gal.dart';
@@ -251,7 +251,7 @@ class _PixelArtPageState extends State<PixelArtPage> {
   }
 
   Future<void> _loadImage() async {
-    if (Platform.isAndroid || Platform.isIOS) {
+    if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
       await showModalBottomSheet(
         context: context,
         builder: (modalContext) => SafeArea(
@@ -344,7 +344,7 @@ class _PixelArtPageState extends State<PixelArtPage> {
       final pngBytes = img.encodePng(_editableImage!);
       const fileName = 'pixel_art.png';
 
-      if (Platform.isAndroid || Platform.isIOS) {
+      if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
         await showModalBottomSheet(
           context: context,
           builder: (modalContext) => SafeArea(
