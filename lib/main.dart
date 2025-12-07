@@ -241,7 +241,7 @@ class _PixelArtPageState extends State<PixelArtPage> {
             tooltip: 'Save Image',
           ),
           IconButton(
-            onPressed: () => _downloadImage(imageUrl1),
+            onPressed: _convertToPixelArt,
             icon: const Icon(Icons.refresh),
             tooltip: 'Reload Image',
           ),
