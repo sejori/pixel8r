@@ -1,0 +1,14 @@
+{
+  'version': 0,
+  'use-external-names': 'false',
+  'case-sensitive': 'false',
+  'roots': [{
+    'type': 'directory',
+    'name': "/Users/sebringrose/Projects/pixel8r/build/macos/Build/Products/Debug/share_plus/share_plus.framework/Modules"
+    'contents': [{
+      'type': 'file',
+      'name': "module.modulemap",
+      'external-contents': "/Users/sebringrose/Projects/pixel8r/build/macos/Build/Intermediates.noindex/Pods.build/Debug/share_plus.build/unextended-module.modulemap",
+    }]
+  }]
+}

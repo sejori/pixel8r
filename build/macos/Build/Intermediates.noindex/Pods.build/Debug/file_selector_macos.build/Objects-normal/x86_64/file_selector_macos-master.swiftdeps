@@ -1,0 +1,9 @@
+version: "Apple Swift version 5.7.1 (swiftlang-5.7.1.135.3 clang-1400.0.29.51)"
+options: "456db53609537543b8b861748abcfdaa07c157129c548f0151ed1bfc70ed0740"
+build_start_time: [1765146208, 203408956]
+build_end_time: [1765146232, 780641078]
+inputs:
+  ? "/Users/sebringrose/.pub-cache/hosted/pub.dev/file_selector_macos-0.9.5/macos/file_selector_macos/Sources/file_selector_macos/FileSelectorPlugin.swift"
+  : [1765129582, 81629276]
+  ? "/Users/sebringrose/.pub-cache/hosted/pub.dev/file_selector_macos-0.9.5/macos/file_selector_macos/Sources/file_selector_macos/messages.g.swift"
+  : [1765129582, 80708980]
