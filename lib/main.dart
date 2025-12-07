@@ -73,12 +73,39 @@ class _PixelArtPageState extends State<PixelArtPage> {
   ];
 
   SharedPreferences? _prefs;
+  
+  final List<img.Image> _undoStack = [];
+  final List<img.Image> _redoStack = [];
+  img.Image? _dragStartImage;
 
   @override
   void initState() {
     super.initState();
     _loadPalette();
     _downloadImage(imageUrl1);
+  }
+
+  void _undo() {
+    if (_undoStack.isEmpty) return;
+    setState(() {
+      _redoStack.add(_editableImage!.clone());
+      _editableImage = _undoStack.removeLast();
+    });
+  }
+
+  void _redo() {
+    if (_redoStack.isEmpty) return;
+    setState(() {
+      _undoStack.add(_editableImage!.clone());
+      _editableImage = _redoStack.removeLast();
+    });
+  }
+
+  void _recordUndoState() {
+    if (_editableImage != null) {
+      _undoStack.add(_editableImage!.clone());
+      _redoStack.clear();
+    }
   }
 
   Future<void> _loadPalette() async {
@@ -181,6 +208,8 @@ class _PixelArtPageState extends State<PixelArtPage> {
 
     setState(() {
       _editableImage = resized;
+      _undoStack.clear();
+      _redoStack.clear();
     });
   }
 
@@ -306,11 +335,26 @@ class _PixelArtPageState extends State<PixelArtPage> {
                             boundaryMargin: const EdgeInsets.all(double.infinity),
                             child: Center(
                               child: GestureDetector(
+                                onPanStart: (details) {
+                                  if (_editableImage != null) {
+                                    _dragStartImage = _editableImage!.clone();
+                                  }
+                                },
                                 onPanUpdate: (details) {
                                   _handleInput(
                                       details.localPosition, displaySize);
                                 },
+                                onPanEnd: (details) {
+                                  if (_dragStartImage != null) {
+                                    setState(() {
+                                      _undoStack.add(_dragStartImage!);
+                                      _redoStack.clear();
+                                      _dragStartImage = null;
+                                    });
+                                  }
+                                },
                                 onTapUp: (details) {
+                                  _recordUndoState();
                                   _handleInput(
                                       details.localPosition, displaySize);
                                 },
@@ -379,9 +423,14 @@ class _PixelArtPageState extends State<PixelArtPage> {
                                       tooltip: 'Save Image',
                                     ),
                                     IconButton(
-                                      onPressed: _convertToPixelArt,
-                                      icon: const Icon(Icons.refresh),
-                                      tooltip: 'Reload Image',
+                                      onPressed: _undoStack.isNotEmpty ? _undo : null,
+                                      icon: const Icon(Icons.undo),
+                                      tooltip: 'Undo',
+                                    ),
+                                    IconButton(
+                                      onPressed: _redoStack.isNotEmpty ? _redo : null,
+                                      icon: const Icon(Icons.redo),
+                                      tooltip: 'Redo',
                                     ),
                                   ],
                                 ),
@@ -439,17 +488,38 @@ class _PixelArtPageState extends State<PixelArtPage> {
                     ),
                     child: ListView.builder(
                       scrollDirection: Axis.horizontal,
-                      itemCount: _palette.length + 1, // +1 for Add button
+                      itemCount: _palette.length + 1, // +1 for Color Picker at start
                       itemBuilder: (context, index) {
-                        if (index == _palette.length) {
-                          return IconButton(
-                            onPressed: _addColor,
-                            icon: const Icon(Icons.add_circle, size: 32, color: Colors.blue),
-                            tooltip: 'Add Color',
+                        if (index == 0) {
+                          // Color Picker Button
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 8.0),
+                            child: IconButton(
+                              onPressed: _addColor,
+                              icon: Container(
+                                width: 32,
+                                height: 32,
+                                decoration: const BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  gradient: SweepGradient(
+                                    colors: [
+                                      Colors.red,
+                                      Colors.green,
+                                      Colors.blue,
+                                      Colors.red,
+                                    ],
+                                  ),
+                                ),
+                                child: const Icon(Icons.add, size: 20, color: Colors.white),
+                              ),
+                              tooltip: 'Add Color',
+                            ),
                           );
                         }
 
-                        final color = _palette[index];
+                        // Palette colors
+                        final int paletteIndex = index - 1;
+                        final color = _palette[paletteIndex];
                         final isSelected = selectedColor == color;
                         
                         return Padding(
@@ -481,7 +551,7 @@ class _PixelArtPageState extends State<PixelArtPage> {
                                 right: 0,
                                 top: 0,
                                 child: GestureDetector(
-                                  onTap: () => _removeColor(index),
+                                  onTap: () => _removeColor(paletteIndex),
                                   child: const Icon(
                                     Icons.close,
                                     size: 14,
