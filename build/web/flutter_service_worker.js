@@ -140,14 +140,17 @@ self.addEventListener("fetch", (event) => {
   event.respondWith(caches.open(CACHE_NAME)
     .then((cache) =>  {
       return cache.match(event.request).then((response) => {
-        // Either respond with the cached resource, or perform a fetch and
-        // lazily populate the cache only if the resource was successfully fetched.
-        return response || fetch(event.request).then((response) => {
-          if (response && Boolean(response.ok)) {
-            cache.put(event.request, response.clone());
+        var fetchPromise = fetch(event.request).then((networkResponse) => {
+          if (networkResponse && Boolean(networkResponse.ok)) {
+            cache.put(event.request, networkResponse.clone());
           }
-          return response;
+          return networkResponse;
         });
+        if (response) {
+          event.waitUntil(fetchPromise.catch(() => {}));
+          return response;
+        }
+        return fetchPromise;
       })
     })
   );
