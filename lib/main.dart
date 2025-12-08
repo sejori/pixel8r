@@ -83,6 +83,7 @@ class _PixelArtPageState extends State<PixelArtPage> {
   final List<img.Image> _redoStack = [];
   img.Image? _dragStartImage;
   bool _isPipetteMode = false;
+  bool _isResolutionLocked = false;
   final ValueNotifier<int> _imageVersion = ValueNotifier(0);
   final TransformationController _transformationController = TransformationController();
 
@@ -97,6 +98,38 @@ class _PixelArtPageState extends State<PixelArtPage> {
   void dispose() {
     _transformationController.dispose();
     super.dispose();
+  }
+
+  void _toggleResolutionLock() {
+    if (_isResolutionLocked) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Unlock Resolution?'),
+          content: const Text(
+              'Changing the resolution will reset your current pixel art. Are you sure you want to unlock it?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  _isResolutionLocked = false;
+                });
+                Navigator.pop(context);
+              },
+              child: const Text('Unlock'),
+            ),
+          ],
+        ),
+      );
+    } else {
+      setState(() {
+        _isResolutionLocked = true;
+      });
+    }
   }
 
   void _undo() {
@@ -596,6 +629,15 @@ class _PixelArtPageState extends State<PixelArtPage> {
                                     style: TextStyle(fontWeight: FontWeight.bold)),
                                 Row(
                                   children: [
+                                    IconButton(
+                                      icon: Icon(_isResolutionLocked
+                                          ? Icons.lock
+                                          : Icons.lock_open),
+                                      onPressed: _toggleResolutionLock,
+                                      tooltip: _isResolutionLocked
+                                          ? 'Unlock Resolution'
+                                          : 'Lock Resolution',
+                                    ),
                                     Expanded(
                                       child: Slider(
                                         value: _targetSize.toDouble(),
@@ -603,12 +645,14 @@ class _PixelArtPageState extends State<PixelArtPage> {
                                         max: 128,
                                         divisions: 120,
                                         label: _targetSize.toString(),
-                                        onChanged: (value) {
-                                          setState(() {
-                                            _targetSize = value.toInt();
-                                            _convertToPixelArt();
-                                          });
-                                        },
+                                        onChanged: _isResolutionLocked
+                                            ? null
+                                            : (value) {
+                                                setState(() {
+                                                  _targetSize = value.toInt();
+                                                  _convertToPixelArt();
+                                                });
+                                              },
                                       ),
                                     ),
                                     Text('${_targetSize}x$_targetSize'),
